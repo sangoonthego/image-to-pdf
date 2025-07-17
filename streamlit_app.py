@@ -11,7 +11,7 @@ from utils.watermark import add_watermark
 from utils.resize import resize_images
 from utils.pdf import pdf_convert
 
-st.title("📸 Convert Image to PDF File")
+st.title("Convert Image to PDF File")
 
 uploaded_files = st.file_uploader("Upload Image (Multiselect Available)", type=["png", "jpeg", "jpg"], accept_multiple_files=True)
 
@@ -20,8 +20,9 @@ if uploaded_files:
     images = []
 
     st.header("Options")
-    mode = st.selectbox("Resize Mode", ["Original", "Percent", "Pixel"])
+    mode = st.selectbox("Resize Mode", ["original", "percent", "pixel"])
     percent, width, height = None, None, None
+
     if mode == "percent":
         percent = st.slider("Resize percent", 10, 200, 100)
     elif mode == "pixel":
@@ -29,27 +30,46 @@ if uploaded_files:
         height = st.number_input("Height", 100, 3000, 600)
 
     watermark_box = st.checkbox("Press to Add Watermark")
-    watermark_text = "" 
+    watermark_text = ""
     if watermark_box:
-        watermark_text = st.text_input("Add watermark", value="Add watermark")
+        watermark_text = st.text_input("Add watermark", value="")
+        opacity = st.slider("Opacity", 50, 255, 128)
+        font_size = st.number_input("Font Size", min_value=0, value=0)
+        font_color = st.color_picker("Font Color", "#FFFFFF")
+        pos_x = st.number_input("Position X", value=20)
+        pos_y = st.number_input("Position Y", value=20)
+        position = (pos_x, pos_y)
+    else:
+        opacity = 0
+        font_size = 0
+        font_color = "#FFFFFF"
+        position = (0, 0)
 
     st.header("Preview")
-    for idx, uploaded_file in enumerate(uploaded_files):
+    for i, uploaded_file in enumerate(uploaded_files):
         image = Image.open(uploaded_file).convert("RGB")
         image = resize_images(image, mode, percent, width, height)
-        if watermark_box and watermark_text:
-            image = add_watermark(image, watermark_text, position=(20, 20))
+
+        if watermark_box and watermark_text.strip():
+            image = add_watermark(
+                image,
+                text=watermark_text,
+                position=position,
+                opacity=opacity,
+                font_size=font_size if font_size > 0 else None,
+                font_color=tuple(int(font_color.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+            )
         images.append(image)
-        st.image(image, caption=uploaded_file.name, use_container_width=True)
+        st.image(image, caption=f"{uploaded_file.name}", use_container_width=True)
 
     st.header("Export PDF")
     if st.button("Convert to PDF"):
         try:
-            pdf_data = pdf_convert(images)
+            pdf_file = pdf_convert(images)
             st.success("Converted Successfully")
             st.download_button(
                 label="Download PDF File",
-                data=pdf_data,
+                data=pdf_file,
                 file_name="",
                 mime="application/pdf"
             )
